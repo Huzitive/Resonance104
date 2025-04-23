@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bridge Resonance Simulation</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #f3f4f6;
+      font-family: 'Arial', sans-serif;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 20px;
+      color: #2e3b4e;
+      font-size: 28px;
+    }
+
+    #controls {
+      margin: 20px;
+      font-size: 18px;
+      color: #333;
+    }
+
+    #statusLabel {
+      font-size: 18px;
+      color: #555;
+    }
+
+    canvas {
+      border: 1px solid #aaa;
+      background: linear-gradient(to bottom, #e0f7fa, #81d4fa);
+      display: block;
+      margin: 0 auto;
+      border-radius: 8px;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    #resonantToggle {
+      margin-left: 10px;
+    }
+
+  </style>
+</head>
+<body>
+  <h1>Tacoma Narrows Bridge Resonance Simulation</h1>
+  <div id="controls">
+    <label>
+      <input type="checkbox" id="resonantToggle" checked />
+      Resonant Wind (matches bridge's natural frequency)
+    </label>
+    <p id="statusLabel">Wind Frequency: Matching</p>
+  </div>
+  <canvas id="canvas" width="900" height="500"></canvas>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const toggle = document.getElementById("resonantToggle");
+    const label = document.getElementById("statusLabel");
+
+    let time = 0;
+    let collapseTime = 0;  // Track time since toggle was enabled
+    let collapse = false;
+    let collapseFlash = 0;
+    let shaking = false;
+
+    // Draw Bridge Towers
+    function drawTowers() {
+      ctx.fillStyle = "#6d7b8d";
+      ctx.fillRect(150, 100, 20, 220);
+      ctx.fillRect(730, 100, 20, 220);
+    }
+
+    // Draw Bridge Cables
+    function drawCables() {
+      ctx.strokeStyle = "#404f66";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let x = 170; x <= 730; x += 10) {
+        let y = 100 + 80 * Math.sin(Math.PI * (x - 170) / (730 - 170));
+        if (x === 170) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    // Draw the Bridge Deck
+    function drawBridgeDeck(amp) {
+      if (collapse) {
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(170, 320);
+        ctx.lineTo(430, 320 + 30 * Math.sin(time * 0.1));
+        ctx.lineTo(480, 400);
+        ctx.lineTo(730, 350 + 20 * Math.sin(time * 0.2));
+        ctx.stroke();
+
+        ctx.strokeStyle = "black";
+        ctx.beginPath();
+        ctx.moveTo(435, 320);
+        ctx.lineTo(470, 400);
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = "#2c3e50";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        for (let x = 170; x <= 730; x += 10) {
+          let y = 320 + (shaking ? Math.sin(time * 0.1 + (x / 90)) * 40 : 0);
+          if (x === 170) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // Draw Wind Animation
+    function drawWindArrows() {
+      const windGradient = ctx.createLinearGradient(850, 200, 850, 300);
+      windGradient.addColorStop(0, "#4fc3f7");
+      windGradient.addColorStop(1, "#0288d1");
+
+      ctx.strokeStyle = windGradient;
+      ctx.fillStyle = windGradient;
+
+      for (let i = 0; i < 6; i++) {
+        let x = 850 - (time * 2 + i * 140) % 900;
+        let y = 250 + Math.sin(i + time * 0.1) * 20;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 20, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - 20, y);
+        ctx.lineTo(x - 15, y - 5);
+        ctx.lineTo(x - 15, y + 5);
+        ctx.fill();
+      }
+    }
+
+    // Update Status Message
+    function updateStatus(isResonant) {
+      label.textContent = "Wind Frequency: " + (isResonant ? "Matching (Resonance)" : "Mismatched (Stable)");
+    }
+
+    // Main Animation Loop
+    function animate() {
+      const isResonant = toggle.checked;
+      updateStatus(isResonant);
+
+      if (collapse && collapseFlash % 20 < 10) {
+        ctx.fillStyle = "#fcc";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
+      if (isResonant) {
+        collapseTime++;
+        if (collapseTime > 10 * 60) { // Collapse after 10 seconds (60 FPS)
+          collapse = true;
+        } else {
+          shaking = true; // Start shaking after 10 seconds of resonance
+        }
+      } else {
+        collapseTime = 0;  // Reset collapse timer when toggle is off
+        collapse = false; // Ensure the bridge stays stable when the toggle is off
+        shaking = false; // Stop shaking
+      }
+
+      let windForce = Math.sin(time * (isResonant ? 0.05 : 0.02));
+
+      // Draw Scene Elements
+      drawWindArrows();
+      drawTowers();
+      drawCables();
+      drawBridgeDeck(windForce * 30);
+
+      time++;
+      if (collapse) collapseFlash++;
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+</body>
+</html>

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Resonance Amplification Simulation</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/addons/p5.sound.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(to right, #f9f9f9, #e6e6ff);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+
+    h1 {
+      margin-top: 20px;
+      font-size: 2em;
+      color: #333;
+    }
+
+    #controls {
+      margin-top: 10px;
+    }
+
+    input[type=range] {
+      width: 200px;
+    }
+
+    canvas {
+      margin: 20px auto;
+      display: block;
+      border: 2px solid #ccc;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    .resonance {
+      color: red;
+      font-weight: bold;
+    }
+
+    button {
+      background-color: #6c63ff;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #5750d4;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎵 Resonance Amplification Simulation by Huzaifa</h1>
+  <div id="controls">
+    <label>Fork A Frequency: 
+      <input type="range" id="freqA" min="50" max="1000" value="440" />
+      <span id="labelA">440 Hz</span>
+    </label>
+    <br /><br />
+    <label>Fork B Frequency: 
+      <input type="range" id="freqB" min="50" max="1000" value="440" />
+      <span id="labelB">440 Hz</span>
+    </label>
+    <br />
+    <div style="margin-top: 10px;">🔁 Beat Frequency: 
+      <span id="beatFreq">0</span> Hz
+    </div>
+    <br />
+    <button onclick="strikeForkA()">🎯 Strike Fork A</button>
+  </div>
+
+  <script>
+    let forkBVibration = 0;
+    let theta = 0, thetaVel = 0, thetaAcc = 0;
+    let strike = false, t = 0;
+    let isDragging = false, dragStartY, stringLength = 100;
+    let oscA, oscB, envA, envB;
+    let g = 9.81, damping = 0.99;
+    let amplitudesA = [], amplitudesB = [], currentResponse = [];
+    let showGraph = false;
+
+    function setup() {
+      createCanvas(900, 650);
+      oscA = new p5.Oscillator('sine');
+      oscB = new p5.Oscillator('sine');
+      envA = new p5.Envelope();
+      envB = new p5.Envelope();
+      envA.setADSR(0.01, 0.5, 0.1, 0.5);
+      envB.setADSR(0.01, 0.5, 0.1, 0.5);
+      oscA.amp(envA);
+      oscB.amp(envB);
+      oscA.start();
+      oscB.start();
+    }
+
+    function draw() {
+      background(255);
+      t += 1;
+
+      let freqA = parseFloat(document.getElementById("freqA").value);
+      let freqB = parseFloat(document.getElementById("freqB").value);
+      document.getElementById("labelA").innerText = freqA + " Hz";
+      document.getElementById("labelB").innerText = freqB + " Hz";
+
+      let beatFreq = abs(freqA - freqB);
+      document.getElementById("beatFreq").innerHTML =
+        `<span class="${beatFreq < 5 ? 'resonance' : ''}">${beatFreq.toFixed(1)}</span> Hz`;
+
+      let forkAX = 100, forkBX = 180, forkY = 400;
+      let ampA = strike ? sin(TWO_PI * freqA * t / 60) * 20 : 0;
+      drawFork(forkAX, forkY, ampA);
+
+      if (strike) {
+        stroke(100, 100, 255, 100);
+        noFill();
+        for (let i = 0; i < 5; i++) {
+          ellipse(forkAX + 50 + i * 15 + ampA / 2, forkY - 70, 20 + i * 20);
+        }
+      }
+
+      if (strike && abs(freqA - freqB) < 3) {
+        forkBVibration += sin(TWO_PI * freqA * t / 60) * 0.5;
+        oscB.freq(freqB);
+        envB.play();
+      } else {
+        envB.triggerRelease();
+      }
+
+      forkBVibration *= 0.98;
+      drawFork(forkBX, forkY, forkBVibration);
+
+      oscA.freq(freqA);
+      oscB.amp(constrain(forkBVibration * 0.05, 0, 0.5));
+      envA.play();
+
+      // Pendulum
+      let originX = 750, originY = forkY - 150;
+      let omega0 = Math.sqrt(g / stringLength);
+      let drivingAmplitude = forkBVibration * 0.05;
+      let drivingForce = drivingAmplitude * sin(TWO_PI * freqB * t / 60);
+
+      thetaAcc = (-g / stringLength) * sin(theta) - 0.01 * thetaVel + drivingForce;
+      thetaVel += thetaAcc;
+      thetaVel *= damping;
+      theta += thetaVel;
+
+      let ballX = originX + stringLength * sin(theta);
+      let ballY = originY + stringLength * cos(theta);
+
+      stroke(0);
+      line(originX, originY, ballX, ballY);
+      fill(isDragging ? 255 : 255, 0, 0);
+      ellipse(ballX, ballY, 25);
+
+      fill(0);
+      noStroke();
+      textSize(14);
+      textAlign(CENTER);
+      text(`Natural Frequency: ${(omega0 / (2 * Math.PI)).toFixed(2)} Hz`, originX, originY - 20);
+
+      // Amplitude Graphs
+      drawAmplitudeGraph(50, 100, amplitudesA, 'Fork A');
+      drawAmplitudeGraph(50, 200, amplitudesB, 'Fork B');
+
+      // Beat waveform visual
+      stroke(0, 50);
+      noFill();
+      beginShape();
+      for (let x = 0; x < width; x++) {
+        let time = (t + x) * 0.05;
+        let y = 300 + 30 * (sin(TWO_PI * freqA * time / 60) + sin(TWO_PI * freqB * time / 60));
+        vertex(x, y);
+      }
+      endShape();
+
+      // Last strike response graph
+      if (showGraph && currentResponse.length > 0) {
+        drawResponseGraph(50, 590, currentResponse);
+      }
+    }
+
+    function drawFork(x, y, amp) {
+      push();
+      translate(x, y);
+      stroke(0);
+      fill(120);
+      rect(-10 + amp, -100, 10, 100);
+      rect(10 + amp, -100, 10, 100);
+      rect(-20, 0, 50, 10);
+      pop();
+    }
+
+    function drawAmplitudeGraph(x, y, amplitudes, label) {
+      stroke(0, 150);
+      fill(255);
+      rect(x, y, 200, 50);
+      stroke(0);
+      noFill();
+      beginShape();
+      for (let i = 0; i < amplitudes.length; i++) {
+        vertex(x + i, y + 25 - amplitudes[i] * 10);
+      }
+      endShape();
+      textSize(12);
+      fill(0);
+      text(label, x + 10, y + 15);
+
+      if (label === 'Fork A') amplitudes.push(strike ? 2 : 0);
+      else amplitudes.push(abs(forkBVibration));
+      if (amplitudes.length > 200) amplitudes.shift();
+    }
+
+    function drawResponseGraph(x, y, data) {
+      stroke(0);
+      fill(255);
+      rect(x, y, 800, 60);
+
+      noFill();
+      stroke(255, 0, 100);
+      beginShape();
+      for (let i = 0; i < data.length; i++) {
+        let px = map(i, 0, data.length, x, x + 800);
+        let py = y + 30 - data[i] * 20;
+        vertex(px, py);
+      }
+      endShape();
+
+      fill(0);
+      noStroke();
+      textSize(12);
+      textAlign(LEFT);
+      text("Fork B Response (Last Strike)", x, y - 5);
+    }
+
+    function strikeForkA() {
+      strike = true;
+      forkBVibration = 0;
+      envA.play();
+      currentResponse = [];
+      showGraph = true;
+
+      let counter = 0;
+      let interval = setInterval(() => {
+        currentResponse.push(abs(forkBVibration));
+        counter++;
+        if (counter >= 300) clearInterval(interval);
+      }, 1000 / 60);
+
+      setTimeout(() => strike = false, 5000);
+    }
+
+    function mousePressed() {
+      let d = dist(mouseX, mouseY, 750 + stringLength * sin(theta), 250 + stringLength * cos(theta));
+      if (d < 15) {
+        isDragging = true;
+        dragStartY = mouseY;
+      }
+    }
+
+    function mouseDragged() {
+      if (isDragging) {
+        let deltaY = mouseY - dragStartY;
+        stringLength = constrain(stringLength + deltaY, 50, 300);
+        dragStartY = mouseY;
+      }
+    }
+
+    function mouseReleased() {
+      isDragging = false;
+    }
+  </script>
+</body>
+</html>

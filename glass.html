@@ -1,0 +1,182 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Resonance: Shattering Glass</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: linear-gradient(145deg, #0f0f1a, #1b1b2f);
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #toggle {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: #1f6feb;
+      color: white;
+      border: none;
+      padding: 12px 22px;
+      font-size: 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 0 10px #1f6feb99;
+      transition: background 0.3s;
+    }
+
+    #toggle:hover {
+      background: #388bfd;
+    }
+  </style>
+</head>
+<body>
+  <button id="toggle">Start Resonance</button>
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    let width, height;
+    let isResonating = false;
+    let startTime = null;
+    let shattered = false;
+
+    function resizeCanvas() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    const speaker = {
+      x: width * 0.2,
+      y: height * 0.6,
+      radius: 50,
+      wavePhase: 0
+    };
+
+    const glass = {
+      x: width * 0.75,
+      y: height * 0.6,
+      width: 20,
+      height: 110,
+      vibration: 0,
+      shatterPieces: []
+    };
+
+    function drawSpeaker() {
+      ctx.fillStyle = "#222";
+      ctx.beginPath();
+      ctx.arc(speaker.x, speaker.y, speaker.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (isResonating && !shattered) {
+        for (let i = 1; i <= 4; i++) {
+          const radius = speaker.radius + i * 25 + Math.sin(speaker.wavePhase + i) * 3;
+          ctx.beginPath();
+          ctx.arc(speaker.x, speaker.y, radius, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(30,144,255, ${0.5 - i * 0.1})`;
+          ctx.lineWidth = 3;
+          ctx.shadowColor = "deepskyblue";
+          ctx.shadowBlur = 15;
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+        speaker.wavePhase += 0.1;
+      }
+    }
+
+    function drawGlass() {
+      if (shattered) {
+        glass.shatterPieces.forEach(p => {
+          ctx.fillStyle = "#cceeff";
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x + p.vx * 4, p.y + p.vy * 3);
+          ctx.lineTo(p.x + p.vx * 8, p.y + p.vy * 1.5);
+          ctx.closePath();
+          ctx.shadowColor = "#aaddff";
+          ctx.shadowBlur = 10;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          p.x += p.vx;
+          p.y += p.vy + 0.2;
+        });
+        return;
+      }
+
+      const vib = isResonating ? Math.sin(Date.now() / 25) * glass.vibration : 0;
+
+      ctx.save();
+      ctx.translate(glass.x, glass.y);
+      ctx.rotate(vib * 0.004);
+      const grd = ctx.createLinearGradient(0, 0, 0, -glass.height);
+      grd.addColorStop(0, "#d0ecff");
+      grd.addColorStop(1, "#99ccff");
+      ctx.fillStyle = grd;
+
+      ctx.beginPath();
+      ctx.moveTo(-glass.width, 0);
+      ctx.lineTo(-glass.width * 1.3, -glass.height);
+      ctx.lineTo(glass.width * 1.3, -glass.height);
+      ctx.lineTo(glass.width, 0);
+      ctx.closePath();
+      ctx.shadowColor = "#66ccff";
+      ctx.shadowBlur = 15;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    function animate(timestamp) {
+      ctx.clearRect(0, 0, width, height);
+      drawSpeaker();
+      drawGlass();
+
+      if (isResonating && !shattered) {
+        if (!startTime) startTime = timestamp;
+        const elapsed = (timestamp - startTime) / 1000;
+
+        if (glass.vibration < 18) {
+          glass.vibration += 0.08;
+        }
+
+        if (elapsed > 10) {
+          shattered = true;
+          for (let i = 0; i < 30; i++) {
+            glass.shatterPieces.push({
+              x: glass.x + Math.random() * 30 - 15,
+              y: glass.y - glass.height / 2,
+              vx: Math.random() * 6 - 3,
+              vy: Math.random() * -4
+            });
+          }
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    document.getElementById("toggle").addEventListener("click", () => {
+      isResonating = true;
+      startTime = null;
+      shattered = false;
+      glass.vibration = 0;
+      glass.shatterPieces = [];
+    });
+
+    animate();
+  </script>
+</body>
+</html>
