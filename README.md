@@ -77,6 +77,8 @@ Perfect for:
     Lead Dev: Huzaifa Ahmed Khan
     Dev: Hasnat Ahmed 
     Tech Stack: HTML+CSS+JS+GITHUB COPILOT
+    Research: Wazeema Azeem and Omama Hashmi
+    Report: Alishba Javaid
 
 🌀 Inspiration
 
@@ -89,6 +91,7 @@ Special thanks to:
     MythBusters' shattering glass episode
 
     Earthquake engineering models and simulations
+    
 
 📬 Contact & Feedback
 
